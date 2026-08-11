@@ -263,6 +263,14 @@
     font-size:11.5px; font-weight:600; padding:4px 10px; border-radius:6px; cursor:pointer;
   }
   .edit-btn:hover{color:var(--ink); border-color:var(--faint);}
+  .map-btn{
+    display:inline-block;
+    border:1px solid var(--line); background:var(--white); color:var(--accent);
+    font-family:'Inter',sans-serif;
+    font-size:11.5px; font-weight:600; padding:4px 10px; border-radius:6px;
+    text-decoration:none; white-space:nowrap;
+  }
+  .map-btn:hover{border-color:var(--accent); background:var(--accent-soft);}
 
   .people{
     display:grid; grid-template-columns:1fr 1fr; gap:14px;
@@ -678,6 +686,7 @@
 const API_URL = 'https://script.google.com/macros/s/AKfycbwtBJrUIneI_NMiPeZCBan2r3JtpaCbbEcGmqGGgTBTLBsr2e-3I7H63vCalRObAQppew/exec';
 </script>
 <script>
+
 (function(){
   const PAGE_SIZE = 60;
   let activeDept = "";
@@ -697,7 +706,7 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbwtBJrUIneI_NMiPeZCBan2
     'Estatus Dispositivo Director':'estatus_disp_director','Proveedor Dispositivo Director':'proveedor_director',
     'Monitor de Cluster':'monitor','Teléfono Monitor (institucional)':'tel_monitor','Teléfono Monitor (personal)':'tel_monitor_personal',
     'DUI Monitor':'dui_monitor','Correo Monitor':'correo_monitor','Estatus Dispositivo Monitor':'estatus_disp_monitor',
-    'Hay Señal CE':'hay_senal','Observación':'observacion'
+    'Hay Señal CE':'hay_senal','Observación':'observacion','Latitud':'lat','Longitud':'lng'
   };
   const REVERSE_HEADER_MAP = Object.fromEntries(Object.entries(HEADER_MAP).map(([k,v])=>[v,k]));
 
@@ -745,6 +754,12 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbwtBJrUIneI_NMiPeZCBan2
       r._hayMonitor = normalize([r.monitor, r.correo_monitor, r.tel_monitor, r.tel_monitor_personal, r.dui_monitor].join(' | '));
       return r;
     });
+    // Diagnóstico: cuántos centros llegaron con coordenadas desde el Apps Script
+    const conCoords = INDEXED.filter(r => r.lat && r.lng).length;
+    console.log(`Directorio: ${INDEXED.length} centros cargados, ${conCoords} con coordenadas.`);
+    if(conCoords === 0 && INDEXED.length > 0){
+      console.warn('Ningún centro trae Latitud/Longitud. Verifica que el Apps Script esté re-implementado (Implementar > Gestionar implementaciones > lápiz > Nueva versión) y que la pestaña se llame "COORDENADAS CENTROS ESCOLARES" con encabezados CÓDIGO CE, LATITUD, LONGITUD.');
+    }
   }
 
   // ---------------- Estadísticas por departamento ----------------
@@ -894,6 +909,18 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbwtBJrUIneI_NMiPeZCBan2
     </div>`;
   }
 
+  function mapLinkHtml(r){
+    const parse = v => {
+      if(v === undefined || v === null) return NaN;
+      // acepta números, y textos con coma decimal o espacios
+      const s = String(v).trim().replace(',', '.');
+      return parseFloat(s);
+    };
+    const lat = parse(r.lat), lng = parse(r.lng);
+    if(isNaN(lat) || isNaN(lng) || (lat === 0 && lng === 0)) return '';
+    return `<a class="map-btn" href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" rel="noopener" title="${lat}, ${lng}">📍 Ver en mapa</a>`;
+  }
+
   function cardHtml(r){
     const senal = normalize(r.hay_senal);
     const senalBadge = senal === 'no' ? `<div class="badge badge-alert">SIN SEÑAL</div>` : `<div class="badge">CLUSTER ${escapeHtml(r.cluster)}</div>`;
@@ -906,6 +933,7 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbwtBJrUIneI_NMiPeZCBan2
           </div>
           <div class="card-top-right">
             ${senalBadge}
+            ${mapLinkHtml(r)}
             ${isAdmin ? `<button class="edit-btn" data-edit="${escapeHtml(r.codigo)}">Editar</button>` : ''}
           </div>
         </div>
@@ -1248,6 +1276,7 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbwtBJrUIneI_NMiPeZCBan2
     loadData();
   })();
 })();
+
 
 </script>
 </body>
